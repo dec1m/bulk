@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class BulkAddQueueWorker {
 	private static TransactionIdGenerator transactionIdGenerator = new TransactionIdGenerator();
 
-	private static int tps = 820;
+	private static int tps = 120;
 	private static long sendingPeriodSec = 10;
 
 	private static int maxQueueSize = 20000;
@@ -54,7 +54,7 @@ public class BulkAddQueueWorker {
 			CachedRowSet requests = dBlayer.getBulkRequests(Integer.parseInt(String.valueOf(tps * sendingPeriodSec)));
 
 			while (requests.next()) {
-				String sourceAddress = "BULK INTERFACE";
+				String sourceAddress = "Beeline";
 
 
 				int request_id = requests.getInt("id");

@@ -18,7 +18,7 @@ public class SMPPClientSubmitSMWorker {
 	private  AtomicInteger tpsController = new AtomicInteger();
 	private QueueService queueService =  QueueService.getInstance();
 	private ClientService clientService = ClientService.getInstance();
-	private int speed = 20;
+	private int speed = 100;
 	private ScheduledExecutorService queueWorker;
 	private ExecutorService smsExecutor;
 

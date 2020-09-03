@@ -77,6 +77,7 @@ public class DBlayer {
 		final String substring = wherePart.toString().replaceFirst(",","");
 		final String endWhenThenPart = " END)";
 		final String sqlQuery = "UPDATE bulk_sending_requests SET transaction_id = (CASE id " + whenThenPart + endWhenThenPart + substring + ");";
+		if(whenThenPart.length() > 0) {
 			try (Connection connection = ds.getConnection();
 			     Statement statement = connection.createStatement()) {
 				statement.execute(sqlQuery);
@@ -86,6 +87,7 @@ public class DBlayer {
 			} catch (Exception e) {
 				logger.error("executeUpdateBach failed", e);
 			}
+		}
 
 	}
 
