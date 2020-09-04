@@ -4,13 +4,16 @@ package com.unifun.workers;
 import com.unifun.db.DBlayer;
 import com.unifun.model.SmsData;
 import com.unifun.services.QueueService;
+import com.unifun.utils.PropertyReader;
 import com.unifun.utils.TransactionIdGenerator;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import javax.sql.rowset.CachedRowSet;
+import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.util.Arrays;
+import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -20,16 +23,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class BulkAddQueueWorker {
 	private static TransactionIdGenerator transactionIdGenerator = new TransactionIdGenerator();
 
-	private static int tps = 800;
-	private static long sendingPeriodSec = 10;
-
-	private static int maxQueueSize = 1000;
-
+	private static int bulkSelectSize;
+	private static int selectPeriodSec;
+	private static int maxQueueSize;
+	private static PropertyReader reader = new PropertyReader();
 	private static DBlayer dBlayer = DBlayer.getInstance();
 	private static QueueService queueService = QueueService.getInstance();
 	static Runnable bulkProcess = new Runnable() {
-
-
 		@Override
 		public void run() {
 			int sizeBulk = queueService.queueSize();
@@ -51,7 +51,7 @@ public class BulkAddQueueWorker {
 
 	private static void addToQueue(){
 		try {
-			CachedRowSet requests = dBlayer.getBulkRequests(Integer.parseInt(String.valueOf( (int) ((double) tps * sendingPeriodSec * 1.2d))));
+			CachedRowSet requests = dBlayer.getBulkRequests(Integer.parseInt(String.valueOf( (int) ((double) bulkSelectSize * selectPeriodSec * 1.2d))));
 
 			while (requests.next()) {
 				String sourceAddress = "Beeline";
@@ -115,7 +115,7 @@ public class BulkAddQueueWorker {
 		double codding = 1;
 
 		try {
-			byte[] bytes = text.getBytes("UTF-8");
+			byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
 			int sizeInBytes = bytes.length;
 
 			codding = nrOfChars == sizeInBytes ? 2d : 1d;
@@ -135,8 +135,12 @@ public class BulkAddQueueWorker {
 	}
 
 	public static void startBulkSendingWorker() {
-		processCounters = new ConcurrentHashMap<Integer, AtomicInteger>();
-		bulkSendingService.scheduleAtFixedRate(bulkProcess, 0, sendingPeriodSec, TimeUnit.SECONDS);
+		final Properties properties = reader.readParamFromFile();
+		bulkSelectSize = Integer.parseInt(properties.getProperty("bulkSelectSize"));
+		selectPeriodSec = Integer.parseInt(properties.getProperty("selectPeriodSec"));
+		maxQueueSize = Integer.parseInt(properties.getProperty("maxQueueSize"));
+		processCounters = new ConcurrentHashMap<>();
+		bulkSendingService.scheduleAtFixedRate(bulkProcess, 0, selectPeriodSec, TimeUnit.SECONDS);
 	}
 
 	public static void stopBulkSendingWorker() {

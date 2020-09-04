@@ -1,22 +1,34 @@
 package com.unifun.db;
 
+import com.unifun.utils.PropertyReader;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Properties;
 
 public class HikariCPDataSource {
 
 	private static HikariConfig config = new HikariConfig();
 	private static HikariDataSource ds;
-
+	private PropertyReader reader = new PropertyReader();
+	private String url ;
+	private String username;
+	private String password;
+	private int connectionPoolSize;
 	public HikariCPDataSource() {
-		config.setJdbcUrl("jdbc:mysql://127.0.0.1:3306/sms_notification_babilon_tj");
-		config.setUsername("root");
-		config.setPassword("HVVUgOJ7AOWPcXUW");
-		config.setMaximumPoolSize(10);
+		final Properties properties = reader.readParamFromFile();
+		url = properties.getProperty("dbConnectionUrl");
+		username = properties.getProperty("dbUsername");
+		password = properties.getProperty("dbPassword");
+		connectionPoolSize = Integer.parseInt(properties.getProperty("dbConnectionPoolSize"));
+
+		config.setJdbcUrl(url);
+		config.setUsername(username);
+		config.setPassword(password);
+		config.setMaximumPoolSize(connectionPoolSize);
 		config.setAutoCommit(true);
 		config.addDataSourceProperty("cachePrepStmts", "true");
 		config.addDataSourceProperty("prepStmtCacheSize", "250");

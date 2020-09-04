@@ -2,7 +2,6 @@ package com.unifun.services;
 
 
 import com.unifun.model.SmsData;
-import com.unifun.utils.TpsController;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.jsmpp.InvalidResponseException;
@@ -20,11 +19,11 @@ public class SendService implements Runnable {
 	private static final Logger logger = LogManager.getLogger(SendService.class);
 	private ClientService clientService = ClientService.getInstance();
 	private SmsData smsData;
-	private TpsController tpsController;
 
-	public SendService(SmsData smsData, TpsController tpsController) {
+
+	public SendService(SmsData smsData) {
 		this.smsData = smsData;
-		this.tpsController = tpsController;
+
 	}
 
 	@Override
@@ -126,10 +125,5 @@ public class SendService implements Runnable {
 			logger.error(buffer.delete(0, buffer.length()).append(e.getMessage()).append(Arrays.toString(e.getStackTrace())));
 			errorMessage = buffer.delete(0, buffer.length()).append("Exception. ErrorMessage: ").append(e.getMessage()).toString();
 		}
-
-		//increment tps value
-		//tpsController.incrementMaxThreads(1);
-
-		//OutSpeedCounter.getInstance().increment(smsData.getQuantity());
 	}
 }

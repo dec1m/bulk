@@ -2,6 +2,7 @@ package com.unifun.services;
 
 
 import com.unifun.model.SMPPClientConfig;
+import com.unifun.utils.PropertyReader;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.jsmpp.bean.BindType;
@@ -15,6 +16,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Properties;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -26,16 +28,14 @@ public class ClientService {
 	private SMPPClientConfig config = new SMPPClientConfig();//todo, add param
 	private static ClientService instance;
 	private static SMPPSession session = new SMPPSession();
+	private static PropertyReader reader = new PropertyReader();
 
 
-	private static final String smppIp = "127.0.0.1";
-
-	private static int port = 33308;
-	//private static int port = 5555;
-
-	private static final String username = "bulk";
-
-	private static final String password = "bulkwork";
+	private static  String host;
+	private static int port;
+	private static  String username;
+	private static  String password;
+	private static  String systemType;
 
 
 	public static synchronized ClientService getInstance() {
@@ -46,27 +46,32 @@ public class ClientService {
 	}
 
 	public ClientService() {
-		initSession();
+		final Properties properties = reader.readParamFromFile();
+		port = Integer.parseInt(properties.getProperty("port"));
+		username = properties.getProperty("username");
+		password = properties.getProperty("password");
+		host = properties.getProperty("host");
+		systemType = properties.getProperty("systemType");
+		initSession(host,port,username,password,systemType);
 	}
 
-	private static SMPPSession initSession() {
-			logger.info("Process bind:");
+	private static SMPPSession initSession(String host,int port,String username,String password,String systemType) {
 		try {
 			session.setMessageReceiverListener(new MessageReceiverListenerImpl());
 			String systemId = session.connectAndBind(
-					smppIp,
+					host,
 					port,
 					new BindParameter(
 							BindType.BIND_TRX,
 							username,
 							password,
-							"sns",
+							systemType,
 							TypeOfNumber.UNKNOWN,
 							NumberingPlanIndicator.UNKNOWN,
 							null));
 			logger.info("Connected with SMPP with system id {} " + systemId);
 		} catch (IOException e) {
-			logger.error("NO CONNECTION TO SERVER");
+			logger.error("Failed connected to server " + host + " " + port + " " + username + " " + systemType);
 		}
 		return session;
 	}
@@ -121,15 +126,14 @@ public class ClientService {
 	static Runnable reconnectProcess = () -> {
 		logger.info("reconnectProcess START");
 		if (!session.getSessionState().isBound()) {
-			logger.info("TRUE!!!");
-			initSession();
+			initSession(host,port,username,password,systemType);
 		}else {
-			logger.info("FALSE!!!");
+			logger.error("Try failed connected to server " + host + " " + port + " " + username + " " + systemType);
 		}
 	};
 	public void start() {
 		logger.info("SHED START");
-		bulkSendingService.scheduleAtFixedRate(reconnectProcess, 0, 2, TimeUnit.SECONDS);
+		bulkSendingService.scheduleAtFixedRate(reconnectProcess, 5, 2, TimeUnit.SECONDS);
 			}
 
 }
