@@ -1,6 +1,7 @@
 package com.unifun;
 
 import com.unifun.services.ClientService;
+import com.unifun.utils.TransactionIdGenerator;
 import com.unifun.workers.BulkAddQueueWorker;
 import com.unifun.workers.SMPPClientSubmitSMWorker;
 import org.apache.log4j.LogManager;
@@ -12,6 +13,7 @@ public class Main {
 		org.apache.log4j.PropertyConfigurator.configureAndWatch("log4j.properties", 10000);
 		Main.logger = LogManager.getLogger(Main.class);
 		System.out.println("Configured logger....");
+		TransactionIdGenerator.initBeginTransactionID();
 		ClientService.getInstance().start();
 		BulkAddQueueWorker.startBulkSendingWorker();
 		SMPPClientSubmitSMWorker sendWorker = new SMPPClientSubmitSMWorker();

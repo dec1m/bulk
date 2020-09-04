@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class BulkAddQueueWorker {
-	private static TransactionIdGenerator transactionIdGenerator = new TransactionIdGenerator();
+	private static TransactionIdGenerator transactionIdGenerator =  TransactionIdGenerator.getInstance();
 
 	private static int bulkSelectSize;
 	private static int selectPeriodSec;
@@ -112,18 +112,24 @@ public class BulkAddQueueWorker {
 
 	private static int getMessageParts(String text){
 		double nrOfChars = text.length();
-		double codding = 1;
+		int codding = 1;
 
 		try {
 			byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
 			int sizeInBytes = bytes.length;
 
-			codding = nrOfChars == sizeInBytes ? 2d : 1d;
+			codding = nrOfChars == sizeInBytes ? 2 : 1;
 		} catch(Exception e) {
 			logger.warn("Bulk count tps error" + e);
 		}
 
-		double messageParts = (nrOfChars / (70 * codding));
+		double messageParts;
+
+		if(codding == 1){
+			 messageParts = (nrOfChars / 65d);
+		}else{
+			 messageParts = (nrOfChars / 134d);
+		}
 
 		int roundPartMax = (int) Math.ceil(messageParts);
 

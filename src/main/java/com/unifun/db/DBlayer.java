@@ -1,5 +1,7 @@
 package com.unifun.db;
 
+import com.unifun.model.DeliveryStatus;
+import com.unifun.utils.PropertyReader;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
@@ -8,6 +10,9 @@ import javax.sql.rowset.CachedRowSet;
 import javax.sql.rowset.RowSetFactory;
 import javax.sql.rowset.RowSetProvider;
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -21,19 +26,30 @@ public class DBlayer {
 	private RowSetFactory rowSetFactory;
 	private static DBlayer instance;
 	private ExecutorService threadPool;
+	private PropertyReader reader = new PropertyReader();
+	List<String> deliveryUpdates = new ArrayList<>();
+	private int batchSize;
+	private int dbThreadPool;
+	private static String sqlUpdateDelivery = "UPDATE bulk_deliveries SET status = \"setStatus\" WHERE remoteId  = setRemote;";
 
 	public DBlayer() {
-		mapBuffer = new ConcurrentHashMap<String, StringBuffer>();
+		mapBuffer = new ConcurrentHashMap<>();
 		mapBuffer.put("updateBulkRequestStatusWhenThenPart", new StringBuffer());
 		mapBuffer.put("updateBulkRequestStatusWherePart", new StringBuffer());
 		StringBuffer wherePart = mapBuffer.get("updateBulkRequestStatusWherePart");
 		wherePart.append("WHERE id IN(");
 
-		//
-		mapCounter = new ConcurrentHashMap<String, AtomicInteger>();
+		//counters
+		mapCounter = new ConcurrentHashMap<>();
 		mapCounter.put("updateBulkRequestStatus", new AtomicInteger());
+		mapCounter.put("batchDeliveryUpdateCounter", new AtomicInteger());
 
-		threadPool = Executors.newFixedThreadPool(20);
+
+		final Properties properties = reader.readParamFromFile();
+		batchSize = Integer.parseInt(properties.getProperty("batchSize"));
+		dbThreadPool = Integer.parseInt(properties.getProperty("dbThreadPool"));
+
+		threadPool = Executors.newFixedThreadPool(dbThreadPool);
 		try {
 			rowSetFactory = RowSetProvider.newFactory();
 		} catch (SQLException throwables) {
@@ -53,7 +69,7 @@ public class DBlayer {
 			preparedStatement.setInt(1, limit);
 
 			try (ResultSet resultSet = preparedStatement.executeQuery()) {
-				synchronized(rowSetFactory) {
+				synchronized (rowSetFactory) {
 					cachedRowSet = rowSetFactory.createCachedRowSet();
 				}
 				cachedRowSet.populate(resultSet);
@@ -65,19 +81,19 @@ public class DBlayer {
 	}
 
 	public static synchronized DBlayer getInstance() {
-		if(instance == null) {
+		if (instance == null) {
 			instance = new DBlayer();
 		}
 		return instance;
 	}
 
-	public void executeUpdateBach(){
+	public void executeUpdateBach() {
 		StringBuffer whenThenPart = mapBuffer.get("updateBulkRequestStatusWhenThenPart");
 		StringBuffer wherePart = mapBuffer.get("updateBulkRequestStatusWherePart");
-		final String substring = wherePart.toString().replaceFirst(",","");
+		final String substring = wherePart.toString().replaceFirst(",", "");
 		final String endWhenThenPart = " END)";
 		final String sqlQuery = "UPDATE bulk_sending_requests SET transaction_id = (CASE id " + whenThenPart + endWhenThenPart + substring + ");";
-		if(whenThenPart.length() > 0) {
+		if (whenThenPart.length() > 0) {
 			try (Connection connection = ds.getConnection();
 			     Statement statement = connection.createStatement()) {
 				statement.execute(sqlQuery);
@@ -98,10 +114,11 @@ public class DBlayer {
 				.append(requestId)
 				.append(" THEN ")
 				.append(transactionId);
-			wherePart.append(",");
-			wherePart.append(requestId);
+		wherePart.append(",");
+		wherePart.append(requestId);
 
 	}
+
 	public void updateCampaignCounters(Integer campaignId, Integer processCounter) {
 		threadPool.execute(() -> {
 			String sqlQuery = "UPDATE bulk_sending_campaign SET process_count = process_count + ? WHERE id = ?";
@@ -115,6 +132,96 @@ public class DBlayer {
 				logger.error("Updating campaing counters failed", e);
 			}
 		});
+	}
+
+	public void saveDeliveryStatus(DeliveryStatus deliveryStatus) {
+		threadPool.execute(() -> {
+			String sqlQuery = "INSERT INTO bulk_deliveries(transactionId,remoteId) VALUES (?,?)";
+
+			try (Connection connection = ds.getConnection();
+			     PreparedStatement preparedStatement = connection.prepareStatement(sqlQuery)) {
+				preparedStatement.setInt(1, deliveryStatus.getTransactionId());
+				preparedStatement.setLong(2, deliveryStatus.getRemoteId());
+				preparedStatement.executeUpdate();
+			} catch (Exception e) {
+				logger.error("saveDeliveryStatus failed", e);
+			}
+		});
+
+	}
+
+	public void updateDeliveryStatus(long remoteId, String status) {
+		threadPool.execute(() -> {
+			String sqlQuery = "UPDATE bulk_deliveries SET status = ? WHERE remoteId  = ?;";
+
+			try (Connection connection = ds.getConnection();
+			     PreparedStatement preparedStatement = connection.prepareStatement(sqlQuery)) {
+				preparedStatement.setString(1, status);
+				preparedStatement.setLong(2, remoteId);
+				preparedStatement.executeUpdate();
+			} catch (Exception e) {
+				logger.error("updateDeliveryStatus failed", e);
+			}
+		});
+
+	}
+
+	private void batchUpdateDeliveryStatusExecute() {
+		List<String> tmp = deliveryUpdates;
+		deliveryUpdates = new ArrayList<>();
+		threadPool.execute(() -> {
+		logger.info(">> tmp " + tmp.size());
+		logger.info(">> deliveryUpdates " + deliveryUpdates.size());
+		try {
+			Connection connection = ds.getConnection();
+			final Statement statement = connection.createStatement();
+			connection.setAutoCommit(false);
+
+			for (String deliveryUpdate : tmp) {
+				statement.addBatch(deliveryUpdate);
+				logger.info("SQL >> " + deliveryUpdate );
+			}
+
+			statement.executeBatch();
+			connection.commit();
+		} catch (Exception e) {
+			logger.error("updateDeliveryStatus failed", e);
+		}
+
+		});
+	}
+
+	public void addUpdateBatch(long remoteId, String status) {
+		AtomicInteger counter = mapCounter.get("batchDeliveryUpdateCounter");
+		final String replace = sqlUpdateDelivery.replace("setStatus", status).replace("setRemote", remoteId + "");
+		deliveryUpdates.add(replace);
+		counter.incrementAndGet();
+		logger.info("COUNTER " + counter.get());
+		logger.info("batchSize " + batchSize);
+		if (counter.get() < batchSize) {
+			logger.info("RETURN COUNTER " + counter.get());
+			return;
+		}
+		counter.set(0);
+		batchUpdateDeliveryStatusExecute();
+
+	}
+
+	public int getMaxTransactionID() {
+		int maxTransactionID = 1;
+		String sqlQuery = "SELECT max_transaction_id FROM transactionidstorage LIMIT 1";
+		try (Connection connection = ds.getConnection();
+		     Statement statement = connection.createStatement()) {
+			ResultSet resultSet = statement.executeQuery(sqlQuery);
+
+			if (resultSet.next()) {
+				maxTransactionID = resultSet.getInt("max_transaction_id");
+			}
+			resultSet.close();
+		} catch (Exception e) {
+			logger.error("Selecting max transaction id failed", e);
+		}
+		return maxTransactionID;
 	}
 
 }

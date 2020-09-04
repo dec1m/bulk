@@ -127,8 +127,6 @@ public class ClientService {
 		logger.info("reconnectProcess START");
 		if (!session.getSessionState().isBound()) {
 			initSession(host,port,username,password,systemType);
-		}else {
-			logger.error("Try failed connected to server " + host + " " + port + " " + username + " " + systemType);
 		}
 	};
 	public void start() {

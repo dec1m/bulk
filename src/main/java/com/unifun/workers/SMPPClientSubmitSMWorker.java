@@ -61,7 +61,8 @@ public class SMPPClientSubmitSMWorker {
 
 				if (!queueService.isEmpty() && clientService.getSession() != null) {
 					sms = queueService.getMessage();
-					tpsController.decrementTps(sms.getQuantity());
+					// Message parts + SRI, SRI is one packet
+					tpsController.decrementTps(sms.getQuantity()); //todo +1 ?!
 					smsExecutor.execute(new SendService(sms));
 				}
 			}

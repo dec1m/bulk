@@ -1,6 +1,8 @@
 package com.unifun.services;
 
 
+import com.unifun.db.DBlayer;
+import com.unifun.model.DeliveryStatus;
 import com.unifun.model.SmsData;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
@@ -19,6 +21,8 @@ public class SendService implements Runnable {
 	private static final Logger logger = LogManager.getLogger(SendService.class);
 	private ClientService clientService = ClientService.getInstance();
 	private SmsData smsData;
+	private DBlayer dBlayer = DBlayer.getInstance();
+
 
 
 	public SendService(SmsData smsData) {
@@ -95,6 +99,10 @@ public class SendService implements Runnable {
 						logger.error(errorMessage);
 						break;
 				}
+
+				//save delivery
+				DeliveryStatus deliveryStatus = new DeliveryStatus(smsData.getTransactionId(),remoteId);
+				dBlayer.saveDeliveryStatus(deliveryStatus);
 			}
 
 		} catch (IllegalArgumentException e) {
