@@ -30,12 +30,12 @@ public class ClientService {
 
 	private static final String smppIp = "127.0.0.1";
 
-	//private static int port = 33308;
-	private static int port = 5555;
+	private static int port = 33308;
+	//private static int port = 5555;
 
-	private static final String username = "sns1";
+	private static final String username = "bulk";
 
-	private static final String password = "sns1";
+	private static final String password = "bulkwork";
 
 
 	public static synchronized ClientService getInstance() {

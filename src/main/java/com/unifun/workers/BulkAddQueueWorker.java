@@ -20,10 +20,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class BulkAddQueueWorker {
 	private static TransactionIdGenerator transactionIdGenerator = new TransactionIdGenerator();
 
-	private static int tps = 120;
+	private static int tps = 800;
 	private static long sendingPeriodSec = 10;
 
-	private static int maxQueueSize = 20000;
+	private static int maxQueueSize = 1000;
 
 	private static DBlayer dBlayer = DBlayer.getInstance();
 	private static QueueService queueService = QueueService.getInstance();
@@ -51,18 +51,17 @@ public class BulkAddQueueWorker {
 
 	private static void addToQueue(){
 		try {
-			CachedRowSet requests = dBlayer.getBulkRequests(Integer.parseInt(String.valueOf(tps * sendingPeriodSec)));
+			CachedRowSet requests = dBlayer.getBulkRequests(Integer.parseInt(String.valueOf( (int) ((double) tps * sendingPeriodSec * 1.2d))));
 
 			while (requests.next()) {
 				String sourceAddress = "Beeline";
-
-
 				int request_id = requests.getInt("id");
 				int compaign_id = requests.getInt("compaign_id");
 				long msisdn = requests.getLong("msisdn");
 				String messageText = requests.getString("message");
 
 				int transaction_id = transactionIdGenerator.getNewTransactionID();
+
 				SmsData smsData = new SmsData(transaction_id,
 						sourceAddress,
 						"5",
@@ -71,7 +70,7 @@ public class BulkAddQueueWorker {
 						"1",
 						"1",
 						messageText,
-						(short) (messageText.length() / 70 + 1),
+						getMessageParts(messageText),
 						(short) 8,
 						(short) 0,
 						new Timestamp(System.currentTimeMillis()),
@@ -111,7 +110,29 @@ public class BulkAddQueueWorker {
 		}
 	}
 
+	private static int getMessageParts(String text){
+		double nrOfChars = text.length();
+		double codding = 1;
 
+		try {
+			byte[] bytes = text.getBytes("UTF-8");
+			int sizeInBytes = bytes.length;
+
+			codding = nrOfChars == sizeInBytes ? 2d : 1d;
+		} catch(Exception e) {
+			logger.warn("Bulk count tps error" + e);
+		}
+
+		double messageParts = (nrOfChars / (70 * codding));
+
+		int roundPartMax = (int) Math.ceil(messageParts);
+
+		if(roundPartMax <= 0){
+			roundPartMax = 1;
+		}
+
+		return roundPartMax;
+	}
 
 	public static void startBulkSendingWorker() {
 		processCounters = new ConcurrentHashMap<Integer, AtomicInteger>();

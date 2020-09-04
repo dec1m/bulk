@@ -21,7 +21,7 @@ public class SmsData implements Serializable {
 	private String message;
 	private short pid;
 	private String priority;
-	private short quantity;
+	private int quantity;
 	private byte ReplaceIfPresent;
 	private String segmentLen;
 	private Timestamp senduntil;
@@ -37,7 +37,7 @@ public class SmsData implements Serializable {
 	}
 
 	public SmsData(Integer transactionId, String fromAD, String fromTON, String fromNP, Long toAD, String toAN,
-	               String toNP, String message, short quantity, short dcs, short pid, Timestamp inserted, Timestamp senduntil,
+	               String toNP, String message, int quantity, short dcs, short pid, Timestamp inserted, Timestamp senduntil,
 	               Integer systemId, String dlrResponseType, String priority, String segmentLen, int serviceId) {
 		super();
 		this.transactionId = transactionId;
@@ -101,7 +101,7 @@ public class SmsData implements Serializable {
 		return priority;
 	}
 
-	public short getQuantity() {
+	public int getQuantity() {
 		return quantity;
 	}
 
@@ -185,7 +185,7 @@ public class SmsData implements Serializable {
 		this.priority = priority;
 	}
 
-	public void setQuantity(short quantity) {
+	public void setQuantity(int quantity) {
 		this.quantity = quantity;
 	}
 
