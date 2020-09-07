@@ -1,6 +1,7 @@
 package com.unifun.services;
 
 import com.unifun.db.DBlayer;
+import com.unifun.model.DeliveryStatus;
 import org.jsmpp.bean.*;
 import org.jsmpp.extra.ProcessRequestException;
 import org.jsmpp.session.DataSmResult;
@@ -17,7 +18,7 @@ public class MessageReceiverListenerImpl implements MessageReceiverListener {
 		try {
 			DeliveryReceipt deliveryReceipt = DefaultDeliveryReceiptStripper.getInstance().strip(deliverSm);
 			remoteId = Long.parseLong(deliveryReceipt.getId());
-			dBlayer.updateDeliveryStatus(remoteId, deliveryReceipt.getFinalStatus().name());
+			dBlayer.addToUpdateBatch(new DeliveryStatus(remoteId, deliveryReceipt.getFinalStatus().name()));
 		} catch (InvalidDeliveryReceiptException e) {
 			e.printStackTrace();
 		}

@@ -36,8 +36,11 @@ public class BulkAddQueueWorker {
 
 			if(sizeBulk <= maxQueueSize){
 				logger.info("BulQuee now size is: " + sizeBulk);
-
+				final long start = System.currentTimeMillis();
 				addToQueue();
+				final long stop = System.currentTimeMillis();
+				logger.info("Adding to the queue: Time :  " +  (stop - start) + " batch size : " + + sizeBulk);
+
 			}else{
 				logger.info("BulQuee is full | Now size is: " + sizeBulk);
 			}

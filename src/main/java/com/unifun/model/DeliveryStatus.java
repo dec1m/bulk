@@ -39,4 +39,18 @@ public class DeliveryStatus {
 		this.transactionId = transactionId;
 		this.remoteId = remoteId;
 	}
+
+	public DeliveryStatus(long remoteId, String state) {
+		this.remoteId = remoteId;
+		this.state = state;
+	}
+
+	@Override
+	public String toString() {
+		return "DeliveryStatus{" +
+				"transactionId=" + transactionId +
+				", remoteId=" + remoteId +
+				", state='" + state + '\'' +
+				'}';
+	}
 }

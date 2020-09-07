@@ -27,7 +27,8 @@ public class DBlayer {
 	private static DBlayer instance;
 	private ExecutorService threadPool;
 	private PropertyReader reader = new PropertyReader();
-	List<String> deliveryUpdates = new ArrayList<>();
+	//List<String> deliveryUpdates = new ArrayList<>();
+	List<DeliveryStatus> deliveryStatuses = new ArrayList<>();
 	private int batchSize;
 	private int dbThreadPool;
 	private static String sqlUpdateDelivery = "UPDATE bulk_deliveries SET status = \"setStatus\" WHERE remoteId  = setRemote;";
@@ -166,44 +167,93 @@ public class DBlayer {
 
 	}
 
-	private void batchUpdateDeliveryStatusExecute() {
-		List<String> tmp = deliveryUpdates;
-		deliveryUpdates = new ArrayList<>();
-		threadPool.execute(() -> {
-		logger.info(">> tmp " + tmp.size());
-		logger.info(">> deliveryUpdates " + deliveryUpdates.size());
-		try {
-			Connection connection = ds.getConnection();
-			final Statement statement = connection.createStatement();
-			connection.setAutoCommit(false);
+//	private void batchUpdateDeliveryStatusExecute() {
+//		List<String> tmp = deliveryUpdates;
+//		deliveryUpdates = new ArrayList<>();
+//		threadPool.execute(() -> {
+//		logger.info(">> tmp " + tmp.size());
+//		logger.info(">> deliveryUpdates " + deliveryUpdates.size());
+//		try {
+//			Connection connection = ds.getConnection();
+//			final Statement statement = connection.createStatement();
+//			connection.setAutoCommit(false);
+//
+//			for (String deliveryUpdate : tmp) {
+//				statement.addBatch(deliveryUpdate);
+//				logger.info("SQL >> " + deliveryUpdate );
+//			}
+//
+//			statement.executeBatch();
+//			connection.commit();
+//		} catch (Exception e) {
+//			logger.error("updateDeliveryStatus failed", e);
+//		}
+//
+//		});
+//	}
+//
+//	public void addUpdateBatch(long remoteId, String status) {
+//		AtomicInteger counter = mapCounter.get("batchDeliveryUpdateCounter");
+//		final String replace = sqlUpdateDelivery.replace("setStatus", status).replace("setRemote", remoteId + "");
+//		deliveryUpdates.add(replace);
+//		counter.incrementAndGet();
+//		logger.info("COUNTER " + counter.get());
+//		logger.info("batchSize " + batchSize);
+//		if (counter.get() < batchSize) {
+//			logger.info("RETURN COUNTER " + counter.get());
+//			return;
+//		}
+//		counter.set(0);
+//		batchUpdateDeliveryStatusExecute();
+//
+//	}
 
-			for (String deliveryUpdate : tmp) {
-				statement.addBatch(deliveryUpdate);
-				logger.info("SQL >> " + deliveryUpdate );
-			}
 
-			statement.executeBatch();
-			connection.commit();
-		} catch (Exception e) {
-			logger.error("updateDeliveryStatus failed", e);
-		}
-
-		});
-	}
-
-	public void addUpdateBatch(long remoteId, String status) {
-		AtomicInteger counter = mapCounter.get("batchDeliveryUpdateCounter");
-		final String replace = sqlUpdateDelivery.replace("setStatus", status).replace("setRemote", remoteId + "");
-		deliveryUpdates.add(replace);
-		counter.incrementAndGet();
-		logger.info("COUNTER " + counter.get());
-		logger.info("batchSize " + batchSize);
-		if (counter.get() < batchSize) {
-			logger.info("RETURN COUNTER " + counter.get());
+	public void addToUpdateBatch(DeliveryStatus deliveryStatus) {
+		deliveryStatuses.add(deliveryStatus);
+		if (deliveryStatuses.size() < batchSize) {
 			return;
 		}
-		counter.set(0);
 		batchUpdateDeliveryStatusExecute();
+
+	}
+
+	private synchronized void batchUpdateDeliveryStatusExecute() {
+		String sql = "UPDATE bulk_deliveries SET status = ? WHERE remoteId  = ?;";
+		List<DeliveryStatus> tmp = deliveryStatuses;
+		deliveryStatuses = new ArrayList<>();
+
+		Connection connection = null;
+		PreparedStatement preparedStatement = null;
+		try {
+			connection = ds.getConnection();
+			preparedStatement = connection.prepareStatement(sql);
+			connection.setAutoCommit(false);
+
+			for (DeliveryStatus deliveryUpdate : tmp) {
+				if (deliveryUpdate != null) {
+					preparedStatement.setString(1, deliveryUpdate.getState());
+					preparedStatement.setLong(2, deliveryUpdate.getRemoteId());
+
+					preparedStatement.addBatch();
+				}
+			}
+
+			preparedStatement.executeBatch();
+			connection.commit();
+
+		} catch (Exception e) {
+			logger.error("updateDeliveryStatus failed", e);
+		} finally {
+			try {
+				preparedStatement.close();
+				connection.close();
+			} catch (SQLException throwables) {
+				throwables.printStackTrace();
+			}
+
+		}
+
 
 	}
 

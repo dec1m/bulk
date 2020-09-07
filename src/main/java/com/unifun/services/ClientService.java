@@ -124,7 +124,6 @@ public class ClientService {
 
 
 	static Runnable reconnectProcess = () -> {
-		logger.info("reconnectProcess START");
 		if (!session.getSessionState().isBound()) {
 			initSession(host,port,username,password,systemType);
 		}
