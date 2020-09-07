@@ -57,11 +57,11 @@ public class BulkAddQueueWorker {
 			CachedRowSet requests = dBlayer.getBulkRequests(Integer.parseInt(String.valueOf( (int) ((double) bulkSelectSize * selectPeriodSec * 1.2d))));
 
 			while (requests.next()) {
-				String sourceAddress = "Beeline";
 				int request_id = requests.getInt("id");
 				int compaign_id = requests.getInt("compaign_id");
 				long msisdn = requests.getLong("msisdn");
 				String messageText = requests.getString("message");
+				String sourceAddress = requests.getString("short_code");
 
 				int transaction_id = transactionIdGenerator.getNewTransactionID();
 
