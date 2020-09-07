@@ -2,7 +2,6 @@ package com.unifun.services;
 
 import com.unifun.model.SmsData;
 import com.unifun.utils.PropertyReader;
-import com.unifun.workers.BulkAddQueueWorker;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
@@ -16,19 +15,22 @@ public class QueueService {
 	private static final Logger logger = LogManager.getLogger(QueueService.class);
 	private String regExp;
 
-	public boolean addToQueue(SmsData smppMessage){
-		if(smppMessage.getMessage().isEmpty()){
+	public boolean addToQueue(SmsData smppMessage) {
+		if (smppMessage.getMessage().isEmpty()) {
 			return false;
 		}
-		if(smppMessage.getTransactionId() == 0){
-			return false;
-		}
-
-		if(!smppMessage.getToAD().toString().matches(regExp)){
+		if (smppMessage.getTransactionId() == 0) {
 			return false;
 		}
 
-		return  smsQueue.add(smppMessage);
+		if (!smppMessage.getToAD().toString().matches(regExp)) {
+			return false;
+		}
+		if(smppMessage.getFromAD().isEmpty()){
+			return false;
+		}
+
+		return smsQueue.add(smppMessage);
 	}
 
 	private QueueService() {
@@ -36,21 +38,23 @@ public class QueueService {
 		regExp = properties.getProperty("regExp");
 	}
 
-	public SmsData getMessage(){
+	public SmsData getMessage() {
 		return smsQueue.poll();
 	}
-	public boolean isEmpty(){
+
+	public boolean isEmpty() {
 		return smsQueue.isEmpty();
 	}
-	public int queueSize(){
+
+	public int queueSize() {
 		return smsQueue.size();
 	}
 
 	public static synchronized QueueService getInstance() {
-			if(instance == null) {
-				instance = new QueueService();
-			}
-			return instance;
+		if (instance == null) {
+			instance = new QueueService();
 		}
+		return instance;
 	}
+}
 
