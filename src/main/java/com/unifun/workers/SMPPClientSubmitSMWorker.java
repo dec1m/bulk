@@ -1,6 +1,7 @@
 package com.unifun.workers;
 
 
+import com.unifun.db.DBlayer;
 import com.unifun.model.SmsData;
 import com.unifun.services.ClientService;
 import com.unifun.services.QueueService;
@@ -29,8 +30,8 @@ public class SMPPClientSubmitSMWorker {
 	private ExecutorService smsExecutor;
 	private TpsController tpsController = new TpsController();
 	private PropertyReader reader = new PropertyReader();
-
-
+	private static final int SRI_PACKET = 1;
+	private DBlayer dBlayer = DBlayer.getInstance();
 	public SMPPClientSubmitSMWorker() {
 		final Properties properties = reader.readParamFromFile();
 		poolSize = Integer.parseInt(properties.getProperty("threadPoolSize"));
@@ -62,7 +63,8 @@ public class SMPPClientSubmitSMWorker {
 				if (!queueService.isEmpty() && clientService.getSession() != null) {
 					sms = queueService.getMessage();
 					// Message parts + SRI, SRI is one packet
-					tpsController.decrementTps(sms.getQuantity()); //todo +1 ?!
+					tpsController.decrementTps(sms.getQuantity() + SRI_PACKET);
+					//dBlayer.addTransactionIdForUpdateSendDate(sms.getTransactionId());
 					smsExecutor.execute(new SendService(sms));
 				}
 			}

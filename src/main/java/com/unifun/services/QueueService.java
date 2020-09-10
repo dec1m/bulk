@@ -19,7 +19,7 @@ public class QueueService {
 		if (smppMessage.getMessage().isEmpty()) {
 			return false;
 		}
-		if (smppMessage.getTransactionId() == 0) {
+		if (smppMessage.getTransactionId() <= 0) {
 			return false;
 		}
 

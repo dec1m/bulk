@@ -39,7 +39,7 @@ public class BulkAddQueueWorker {
 				final long start = System.currentTimeMillis();
 				addToQueue();
 				final long stop = System.currentTimeMillis();
-				logger.info("Adding to the queue: Time :  " +  (stop - start) + " batch size : " + + sizeBulk);
+				logger.info("Adding to the queue: Time :  " +  (stop - start) + " bulkQueue size : " + + sizeBulk);
 
 			}else{
 				logger.info("BulQuee is full | Now size is: " + sizeBulk);
@@ -79,7 +79,7 @@ public class BulkAddQueueWorker {
 						new Timestamp(System.currentTimeMillis()),
 						null,
 						0,
-						"0",
+						"1",
 						"0",
 						"1",
 						0

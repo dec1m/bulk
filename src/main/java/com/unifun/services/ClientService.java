@@ -36,7 +36,7 @@ public class ClientService {
 	private static  String username;
 	private static  String password;
 	private static  String systemType;
-
+	private static int timeout;
 
 	public static synchronized ClientService getInstance() {
 		if (instance == null) {
@@ -52,12 +52,14 @@ public class ClientService {
 		password = properties.getProperty("password");
 		host = properties.getProperty("host");
 		systemType = properties.getProperty("systemType");
+		timeout = Integer.parseInt(properties.getProperty("timeout"));
 		initSession(host,port,username,password,systemType);
 	}
 
 	private static SMPPSession initSession(String host,int port,String username,String password,String systemType) {
 		try {
 			session.setMessageReceiverListener(new MessageReceiverListenerImpl());
+			session.setTransactionTimer(timeout);
 			String systemId = session.connectAndBind(
 					host,
 					port,

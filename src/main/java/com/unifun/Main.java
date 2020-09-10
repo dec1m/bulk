@@ -3,6 +3,7 @@ package com.unifun;
 import com.unifun.services.ClientService;
 import com.unifun.utils.TransactionIdGenerator;
 import com.unifun.workers.BulkAddQueueWorker;
+import com.unifun.workers.DeliveryStatusWorker;
 import com.unifun.workers.SMPPClientSubmitSMWorker;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
@@ -18,6 +19,7 @@ public class Main {
 		BulkAddQueueWorker.startBulkSendingWorker();
 		SMPPClientSubmitSMWorker sendWorker = new SMPPClientSubmitSMWorker();
 		sendWorker.start();
+		DeliveryStatusWorker.start();
 
 	}
 }

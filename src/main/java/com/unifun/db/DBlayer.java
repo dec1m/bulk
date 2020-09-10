@@ -29,6 +29,7 @@ public class DBlayer {
 	private PropertyReader reader = new PropertyReader();
 	//List<String> deliveryUpdates = new ArrayList<>();
 	List<DeliveryStatus> deliveryStatuses = new ArrayList<>();
+	List<Integer> idForUpdateSendDate = new ArrayList<>();
 	private int batchSize;
 	private int dbThreadPool;
 	private static String sqlUpdateDelivery = "UPDATE bulk_deliveries SET status = \"setStatus\" WHERE remoteId  = setRemote;";
@@ -61,7 +62,7 @@ public class DBlayer {
 
 	public CachedRowSet getBulkRequests(Integer limit) {
 		CachedRowSet cachedRowSet = null;
-		String sqlQuery = "SELECT r.id, r.compaign_id, r.msisdn, r.message FROM bulk_sending_requests r " +
+		String sqlQuery = "SELECT r.id, r.compaign_id, r.msisdn, r.message,r.short_code FROM bulk_sending_requests r " +
 				" USE INDEX (compaign_id_trans_id) JOIN bulk_sending_campaign c ON r.compaign_id = c.id WHERE c.is_active = 1 AND transaction_id = 0 " +
 				" LIMIT ?";
 
@@ -93,7 +94,7 @@ public class DBlayer {
 		StringBuffer wherePart = mapBuffer.get("updateBulkRequestStatusWherePart");
 		final String substring = wherePart.toString().replaceFirst(",", "");
 		final String endWhenThenPart = " END)";
-		final String sqlQuery = "UPDATE bulk_sending_requests SET transaction_id = (CASE id " + whenThenPart + endWhenThenPart + substring + ");";
+		final String sqlQuery = "UPDATE bulk_sending_requests  SET process_datetime = NOW(), transaction_id = (CASE id " + whenThenPart + endWhenThenPart + substring + ");";
 		if (whenThenPart.length() > 0) {
 			try (Connection connection = ds.getConnection();
 			     Statement statement = connection.createStatement()) {
@@ -108,6 +109,7 @@ public class DBlayer {
 
 	}
 
+
 	public void addToUpdateBatch(Integer transactionId, Integer requestId) {
 		StringBuffer whenThenPart = mapBuffer.get("updateBulkRequestStatusWhenThenPart");
 		StringBuffer wherePart = mapBuffer.get("updateBulkRequestStatusWherePart");
@@ -119,6 +121,7 @@ public class DBlayer {
 		wherePart.append(requestId);
 
 	}
+
 
 	public void updateCampaignCounters(Integer campaignId, Integer processCounter) {
 		threadPool.execute(() -> {
@@ -137,7 +140,7 @@ public class DBlayer {
 
 	public void saveDeliveryStatus(DeliveryStatus deliveryStatus) {
 		threadPool.execute(() -> {
-			String sqlQuery = "INSERT INTO bulk_deliveries(transactionId,remoteId) VALUES (?,?)";
+			String sqlQuery = "INSERT INTO bulk_deliveries_temp(transactionId,remoteId) VALUES (?,?)";
 
 			try (Connection connection = ds.getConnection();
 			     PreparedStatement preparedStatement = connection.prepareStatement(sqlQuery)) {
@@ -167,58 +170,58 @@ public class DBlayer {
 
 	}
 
-//	private void batchUpdateDeliveryStatusExecute() {
-//		List<String> tmp = deliveryUpdates;
-//		deliveryUpdates = new ArrayList<>();
-//		threadPool.execute(() -> {
-//		logger.info(">> tmp " + tmp.size());
-//		logger.info(">> deliveryUpdates " + deliveryUpdates.size());
-//		try {
-//			Connection connection = ds.getConnection();
-//			final Statement statement = connection.createStatement();
-//			connection.setAutoCommit(false);
-//
-//			for (String deliveryUpdate : tmp) {
-//				statement.addBatch(deliveryUpdate);
-//				logger.info("SQL >> " + deliveryUpdate );
-//			}
-//
-//			statement.executeBatch();
-//			connection.commit();
-//		} catch (Exception e) {
-//			logger.error("updateDeliveryStatus failed", e);
-//		}
-//
-//		});
-//	}
-//
-//	public void addUpdateBatch(long remoteId, String status) {
-//		AtomicInteger counter = mapCounter.get("batchDeliveryUpdateCounter");
-//		final String replace = sqlUpdateDelivery.replace("setStatus", status).replace("setRemote", remoteId + "");
-//		deliveryUpdates.add(replace);
-//		counter.incrementAndGet();
-//		logger.info("COUNTER " + counter.get());
-//		logger.info("batchSize " + batchSize);
-//		if (counter.get() < batchSize) {
-//			logger.info("RETURN COUNTER " + counter.get());
-//			return;
-//		}
-//		counter.set(0);
-//		batchUpdateDeliveryStatusExecute();
-//
-//	}
 
-
-	public void addToUpdateBatch(DeliveryStatus deliveryStatus) {
-		deliveryStatuses.add(deliveryStatus);
-		if (deliveryStatuses.size() < batchSize) {
+	public void addTransactionIdForUpdateSendDate(int transactionId) {
+		idForUpdateSendDate.add(transactionId);
+		if(idForUpdateSendDate.size() < batchSize){
 			return;
 		}
-		batchUpdateDeliveryStatusExecute();
+		updateSendDateTimeBatch();
+	}
+
+	private void updateSendDateTimeBatch() {
+		List<Integer> tmp = idForUpdateSendDate;
+		idForUpdateSendDate = new ArrayList<>();
+		threadPool.execute(() -> {
+			Connection connection = null;
+			PreparedStatement preparedStatement = null;
+			String sqlQuery = "UPDATE bulk_sending_requests SET sent_sms_datetime = NOW() WHERE transaction_id = ?";
+
+			try {
+				connection = ds.getConnection();
+				preparedStatement = connection.prepareStatement(sqlQuery);
+				connection.setAutoCommit(false);
+				logger.info("SIZE " + tmp.size());
+				for (Integer transactionId : tmp) {
+					if (transactionId != null) {
+						preparedStatement.setLong(1, transactionId);
+						preparedStatement.addBatch();
+					}
+				}
+
+				preparedStatement.executeBatch();
+				connection.commit();
+
+			} catch (Exception e) {
+				logger.error("updateSendDateTimeBatch failed", e);
+			} finally {
+				try {
+					preparedStatement.close();
+					connection.close();
+				} catch (SQLException throwables) {
+					throwables.printStackTrace();
+				}
+
+			}
+		});
 
 	}
 
-	private synchronized void batchUpdateDeliveryStatusExecute() {
+	public void addToUpdateBatch(DeliveryStatus deliveryStatus) {
+		deliveryStatuses.add(deliveryStatus);
+	}
+
+	public void batchUpdateDeliveryStatusExecute() {
 		String sql = "UPDATE bulk_deliveries SET status = ? WHERE remoteId  = ?;";
 		List<DeliveryStatus> tmp = deliveryStatuses;
 		deliveryStatuses = new ArrayList<>();
@@ -254,6 +257,17 @@ public class DBlayer {
 
 		}
 
+
+	}
+
+	public synchronized void moveBulkDelivery() {
+		try (Connection connection = ds.getConnection();
+		     Statement statement = connection.createStatement()) {
+			String sqlQuery = "call move_bulk_deliveries()";
+			statement.execute(sqlQuery);
+		} catch (Exception e) {
+			logger.error("Selecting max transaction id failed", e);
+		}
 
 	}
 
