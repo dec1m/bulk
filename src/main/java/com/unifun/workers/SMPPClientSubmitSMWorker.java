@@ -6,6 +6,7 @@ import com.unifun.model.SmsData;
 import com.unifun.services.ClientService;
 import com.unifun.services.QueueService;
 import com.unifun.services.SendService;
+import com.unifun.utils.InSpeedCounter;
 import com.unifun.utils.PropertyReader;
 import com.unifun.utils.TpsController;
 import org.apache.log4j.LogManager;
@@ -65,6 +66,7 @@ public class SMPPClientSubmitSMWorker {
 					// Message parts + SRI, SRI is one packet
 					tpsController.decrementTps(sms.getQuantity() + SRI_PACKET);
 					//dBlayer.addTransactionIdForUpdateSendDate(sms.getTransactionId());
+					InSpeedCounter.getInstance().increment(sms.getQuantity());
 					smsExecutor.execute(new SendService(sms));
 				}
 			}

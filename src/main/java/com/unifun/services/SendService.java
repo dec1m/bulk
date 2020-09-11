@@ -4,6 +4,8 @@ package com.unifun.services;
 import com.unifun.db.DBlayer;
 import com.unifun.model.DeliveryStatus;
 import com.unifun.model.SmsData;
+import com.unifun.utils.InSpeedCounter;
+import com.unifun.utils.OutSpeedCounter;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.jsmpp.InvalidResponseException;
@@ -133,5 +135,7 @@ public class SendService implements Runnable {
 			logger.error(buffer.delete(0, buffer.length()).append(e.getMessage()).append(Arrays.toString(e.getStackTrace())));
 			errorMessage = buffer.delete(0, buffer.length()).append("Exception. ErrorMessage: ").append(e.getMessage()).toString();
 		}
+		OutSpeedCounter.getInstance().increment(smsData.getQuantity());
+
 	}
 }
