@@ -65,9 +65,10 @@ public class SMPPClientSubmitSMWorker {
 					sms = queueService.getMessage();
 					// Message parts + SRI, SRI is one packet
 					tpsController.decrementTps(sms.getQuantity() + SRI_PACKET);
-					//dBlayer.addTransactionIdForUpdateSendDate(sms.getTransactionId());
+					dBlayer.addTransactionIdForUpdateSendDate(sms.getTransactionId());
 					InSpeedCounter.getInstance().increment(sms.getQuantity());
 					smsExecutor.execute(new SendService(sms));
+
 				}
 			}
 		}, 0, 50, TimeUnit.MILLISECONDS);

@@ -185,20 +185,22 @@ public class DBlayer {
 		threadPool.execute(() -> {
 			Connection connection = null;
 			PreparedStatement preparedStatement = null;
-			String sqlQuery = "UPDATE bulk_sending_requests SET sent_sms_datetime = NOW() WHERE transaction_id = ?";
+			String sqlQuery = "UPDATE bulk_sending_requests SET sent_sms_datetime = ? WHERE transaction_id = ?";
 
 			try {
 				connection = ds.getConnection();
 				preparedStatement = connection.prepareStatement(sqlQuery);
 				connection.setAutoCommit(false);
-				logger.info("SIZE " + tmp.size());
+
 				for (Integer transactionId : tmp) {
 					if (transactionId != null) {
-						preparedStatement.setLong(1, transactionId);
+						preparedStatement.setTimestamp(1, new Timestamp(System.currentTimeMillis()));
+						preparedStatement.setLong(2, transactionId);
+
 						preparedStatement.addBatch();
 					}
 				}
-
+				logger.info("SIZE " + preparedStatement);
 				preparedStatement.executeBatch();
 				connection.commit();
 

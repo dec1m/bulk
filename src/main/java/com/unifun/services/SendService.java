@@ -105,6 +105,7 @@ public class SendService implements Runnable {
 				//save delivery
 				DeliveryStatus deliveryStatus = new DeliveryStatus(smsData.getTransactionId(),remoteId);
 				dBlayer.saveDeliveryStatus(deliveryStatus);
+
 			}
 
 		} catch (IllegalArgumentException e) {
